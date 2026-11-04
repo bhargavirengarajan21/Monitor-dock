@@ -1,0 +1,5 @@
+# Runtime has no third-party dependencies — the AI layer uses only the Python
+# standard library (urllib) so it runs in CI and offline.
+#
+# Development / testing:
+pytest>=7.4

@@ -75,7 +75,7 @@ flowchart TB
 | **Indexer** | Kafka consumer that chunks a postmortem or runbook, creates embeddings, and writes chunks with their team tag. |
 | **Postgres + pgvector** | One database for vector search (pgvector) and keyword search (full-text `tsvector`). |
 | **Context fetchers** | Read-only clients for New Relic (errors, traces), GitHub Actions (workflow runs), and GitHub (commits). |
-| **React UI** | Approve-postmortem screen, alert answer screen with citations. |
+| **React UI** | Approve-postmortem screen where the engineer can edit fields and click Approve or Reject (only approved postmortems move on to indexing), and an alert answer screen that shows the alert, the answer, and clickable sources, plus a team switcher for the permissions demo. |
 
 ### Recall in five steps
 
@@ -195,15 +195,6 @@ cd frontend && npm install && npm run dev
 
 ---
 
-## Demo script (2 minutes)
-
-1. **Capture.** Play a 60-second recording of engineers fixing `ERR_PAYMENT_409`. The drafted postmortem appears with cause, fix, owner, and the related deploy. Click **Approve**.
-2. **Recall.** Trigger the same error in the test repository. New Relic fires the alert, and Incident Memory answers within seconds, citing the approved postmortem and the GitHub Actions deploy that introduced the bug.
-3. **Honesty.** Trigger an error that has never happened. The answer is *"No similar incident found."*
-4. **Permissions.** Ask the same question as a different team and show the restricted postmortem is excluded.
-
----
-
 ## Evaluation
 
 | Metric | How it is measured |
@@ -214,6 +205,17 @@ cd frontend && npm install && npm run dev
 | **Answer latency** | p50 and p95 time from alert to answer. |
 
 All evaluation data is synthetic. No real company incidents, logs, or recordings are used.
+
+### Latest results
+
+Run with `python ai-service/scripts/eval.py` against the bundled synthetic set (30 alerts with a known incident, 10 with none):
+
+| Metric | Result |
+|---|---|
+| Hit rate @3 | 90.0% |
+| Honest misses | 90.0% |
+| Answer latency p50 | 724 ms |
+| Answer latency p95 | 1499 ms |
 
 ---
 
