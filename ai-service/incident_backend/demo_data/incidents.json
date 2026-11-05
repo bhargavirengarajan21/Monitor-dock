@@ -1,0 +1,45 @@
+{
+  "_comment": "Synthetic incidents and seeded fix PRs (Story 25). All data is fabricated — no real company incidents, logs, or recordings. The seeder (incident_backend/seed.py) loads this into the backend; in production the same loader reads real approved postmortems instead.",
+  "teams": {
+    "payments": { "tool": "new_relic", "visible_teams": [] },
+    "web": { "tool": "prometheus", "visible_teams": [] },
+    "platform": { "tool": "new_relic", "visible_teams": ["payments", "web"] }
+  },
+  "incidents": [
+    {
+      "team_id": "payments",
+      "title": "Payment 409 after idempotency key change",
+      "service": "payment-service",
+      "error_codes": ["ERR_PAYMENT_409"],
+      "cause": "Deploy abc123 changed the idempotency key to include a timestamp, so retried charges no longer matched and the gateway returned 409 Conflict.",
+      "fix": "Reverted the key change in PR #42 so the idempotency key is the order id again; 409s cleared within minutes.",
+      "url": "https://github.com/acme/payments/pull/42"
+    },
+    {
+      "team_id": "payments",
+      "title": "Payment timeouts from a missing database index",
+      "service": "payment-service",
+      "error_codes": ["ERR_PAYMENT_TIMEOUT"],
+      "cause": "A new fraud-check query did a full table scan on transactions; under load it exceeded the 2s gateway timeout.",
+      "fix": "Added a composite index on (account_id, created_at) in PR #51; p95 query time dropped from 2.4s to 40ms.",
+      "url": "https://github.com/acme/payments/pull/51"
+    },
+    {
+      "team_id": "web",
+      "title": "Checkout 503 after a bad feature-flag rollout",
+      "service": "checkout-web",
+      "error_codes": ["ERR_CHECKOUT_503"],
+      "cause": "A feature flag enabled the new checkout for 100% of traffic before the backing service was scaled, so the pods OOM-killed and returned 503.",
+      "fix": "Rolled the flag back to 5% in PR #88 and raised the memory limit; 503s stopped immediately.",
+      "url": "https://github.com/acme/web/pull/88"
+    }
+  ],
+  "live_errors": {
+    "payment-service": [
+      { "message": "ERR_PAYMENT_409 Conflict on /charge", "trace": "PaymentGateway.charge", "count": 37, "url": "https://one.newrelic.com/errors/payment-409" }
+    ],
+    "checkout-web": [
+      { "message": "ERR_CHECKOUT_503 Service Unavailable", "trace": "CheckoutController.create", "count": 12, "url": "https://one.newrelic.com/errors/checkout-503" }
+    ]
+  }
+}

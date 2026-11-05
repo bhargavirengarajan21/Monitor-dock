@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<!--
+  Incident Memory UI (Stories 14, 24, 37, 38, 39).
+
+  A single static page — no build step, no framework install — served by the
+  Python backend so the whole app runs from `python -m incident_backend`. It
+  calls the same JSON API documented in incident_backend/api.py.
+
+  * Recall  — fire an alert, see the FACTS first (matched incidents with honest
+              similarity scores + live status), then the cited AI answer.
+  * Review  — approve or reject draft postmortems before they become memory.
+  * Teams   — the connected monitoring tools and team read-visibility.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Incident Memory</title>
+<style>
+  :root {
+    --bg: #0f1420; --panel: #171e2e; --panel2: #1e2740; --line: #2a3450;
+    --text: #e7ecf5; --muted: #93a0bd; --accent: #5b8cff; --good: #3ecf8e;
+    --warn: #ffb020; --bad: #ff6b6b;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+  header { display: flex; align-items: center; gap: 16px; padding: 14px 22px;
+    border-bottom: 1px solid var(--line); background: var(--panel); }
+  header h1 { font-size: 17px; margin: 0; letter-spacing: .3px; }
+  header .spacer { flex: 1; }
+  label.switch { color: var(--muted); font-size: 13px; }
+  select, input, textarea, button { font: inherit; }
+  select, input, textarea { background: var(--panel2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+  textarea { width: 100%; resize: vertical; }
+  nav { display: flex; gap: 6px; padding: 10px 22px 0; }
+  nav button { background: transparent; color: var(--muted); border: none;
+    border-bottom: 2px solid transparent; padding: 8px 12px; cursor: pointer; }
+  nav button.active { color: var(--text); border-bottom-color: var(--accent); }
+  main { padding: 22px; max-width: 920px; margin: 0 auto; }
+  .card { background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; padding: 16px 18px; margin-bottom: 16px; }
+  .card h2 { margin: 0 0 4px; font-size: 15px; }
+  .card .sub { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  button.primary { background: var(--accent); color: #fff; border: none;
+    border-radius: 8px; padding: 9px 14px; cursor: pointer; font-weight: 600; }
+  button.ghost { background: var(--panel2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; cursor: pointer; }
+  button.good { background: var(--good); color: #06281b; border: none;
+    border-radius: 8px; padding: 9px 14px; cursor: pointer; font-weight: 600; }
+  button.bad { background: transparent; color: var(--bad); border: 1px solid var(--bad);
+    border-radius: 8px; padding: 9px 14px; cursor: pointer; }
+  .chip { display: inline-block; font-size: 12px; padding: 2px 9px; border-radius: 999px;
+    border: 1px solid var(--line); color: var(--muted); }
+  .facts { border-left: 3px solid var(--accent); padding-left: 14px; }
+  .match { display: flex; justify-content: space-between; align-items: center;
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; margin: 6px 0; }
+  .score { font-variant-numeric: tabular-nums; }
+  .bar { height: 6px; width: 120px; background: var(--panel2); border-radius: 4px; overflow: hidden; }
+  .bar > span { display: block; height: 100%; background: var(--good); }
+  .answer { background: var(--panel2); border-radius: 10px; padding: 14px; margin-top: 8px; }
+  .cite { font-size: 13px; color: var(--muted); margin: 3px 0; }
+  .cite a { color: var(--accent); text-decoration: none; }
+  .nomatch { color: var(--warn); font-weight: 600; }
+  .muted { color: var(--muted); }
+  .tag { font-size: 12px; color: var(--muted); }
+  a { color: var(--accent); }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .hidden { display: none; }
+  /* Landing / instructions page shown before the dashboard. */
+  #landing { position: fixed; inset: 0; z-index: 50; overflow: auto;
+    background: radial-gradient(1200px 600px at 50% -10%, #1b2d4a, transparent),
+      linear-gradient(180deg, #121a2b 0%, var(--bg) 60%); }
+  .landing-wrap { max-width: 760px; margin: 0 auto; padding: 72px 24px 48px; }
+  .landing-wrap h1 { font-size: 34px; margin: 0 0 6px; letter-spacing: .3px; }
+  .landing-wrap .lede { color: var(--muted); font-size: 17px; margin-bottom: 28px; }
+  .steps { display: grid; gap: 12px; margin: 0 0 28px; padding: 0; list-style: none; }
+  .steps li { display: flex; gap: 14px; align-items: flex-start;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .steps .n { flex: 0 0 28px; height: 28px; border-radius: 50%; background: var(--panel2);
+    color: var(--accent); font-weight: 700; display: grid; place-items: center; }
+  .steps b { display: block; }
+  .steps span { color: var(--muted); font-size: 14px; }
+  .enter { display: flex; align-items: center; gap: 14px; }
+  button.enter-btn { background: var(--accent); color: #fff; border: none; border-radius: 10px;
+    padding: 14px 24px; font-size: 16px; font-weight: 700; cursor: pointer; }
+</style>
+</head>
+<body>
+<!-- LANDING / INSTRUCTIONS — shown first, then "Open dashboard" reveals the app. -->
+<section id="landing">
+  <div class="landing-wrap">
+    <h1>🧠 Incident Memory</h1>
+    <div class="lede">AI that remembers how your team fixed things. When an alert fires again,
+      it recalls the past cause and the fix that worked — with citations — instead of letting
+      someone rediscover it from scratch.</div>
+    <ol class="steps">
+      <li><div class="n">1</div><div><b>Recall a fix</b>
+        <span>On the <i>Recall</i> tab, pick a scenario and hit <i>Fire alert</i>. You'll see the
+        facts first (matching incidents with similarity scores and the live error count), then the
+        cited answer.</span></div></li>
+      <li><div class="n">2</div><div><b>Switch teams</b>
+        <span>Use the team selector (top-right) to prove the permission filter: one team never sees
+        another team's postmortem, even for the same error.</span></div></li>
+      <li><div class="n">3</div><div><b>Approve a postmortem</b>
+        <span>On <i>Review drafts</i>, create a draft and Approve it — only then does it become
+        searchable memory. Reject keeps it out.</span></div></li>
+      <li><div class="n">4</div><div><b>Honest misses</b>
+        <span>Fire the <i>Never-seen error</i> scenario — the system says "No similar incident found"
+        rather than guessing.</span></div></li>
+    </ol>
+    <div class="enter">
+      <button class="enter-btn" id="enterDashboard">Open dashboard →</button>
+      <span class="muted">Everything runs offline — no keys or setup needed.</span>
+    </div>
+  </div>
+</section>
+<header>
+  <h1>🧠 Incident Memory</h1>
+  <span class="chip" id="health">connecting…</span>
+  <div class="spacer"></div>
+  <label class="switch">Acting as team &nbsp;
+    <select id="team"></select>
+  </label>
+</header>
+<nav>
+  <button data-tab="recall" class="active">Recall</button>
+  <button data-tab="review">Review drafts</button>
+  <button data-tab="teams">Teams</button>
+</nav>
+<main>
+  <!-- RECALL / ANSWER SCREEN (Stories 24, 38, 39) -->
+  <section id="tab-recall">
+    <div class="card">
+      <h2>An alert is firing</h2>
+      <div class="sub">Pick a scenario or enter your own, then recall how it was fixed.</div>
+      <div class="row" style="margin-bottom:12px">
+        <button class="ghost" data-scn="payments">Payments 409 (New Relic)</button>
+        <button class="ghost" data-scn="checkout">Checkout 503 (Prometheus)</button>
+        <button class="ghost" data-scn="unknown">Never-seen error</button>
+      </div>
+      <div class="grid">
+        <div><label class="tag">Source tool</label>
+          <select id="source" style="width:100%">
+            <option value="new_relic">new_relic</option>
+            <option value="prometheus">prometheus</option>
+          </select></div>
+        <div><label class="tag">Service</label>
+          <input id="service" style="width:100%" placeholder="payment-service" /></div>
+      </div>
+      <div style="margin-top:10px"><label class="tag">Error code</label>
+        <input id="errorCode" style="width:100%" placeholder="ERR_PAYMENT_409" /></div>
+      <div class="row" style="margin-top:12px">
+        <button class="primary" id="fire">Fire alert → recall</button>
+      </div>
+    </div>
+    <div id="recallResult"></div>
+  </section>
+
+  <!-- REVIEW / APPROVE SCREEN (Story 14) -->
+  <section id="tab-review" class="hidden">
+    <div class="card">
+      <h2>Draft a postmortem</h2>
+      <div class="sub">A human approves every postmortem before it becomes memory.</div>
+      <div class="grid">
+        <div><label class="tag">Title</label><input id="d_title" style="width:100%" /></div>
+        <div><label class="tag">Error code</label><input id="d_code" style="width:100%" placeholder="ERR_..." /></div>
+      </div>
+      <div style="margin-top:8px"><label class="tag">Cause</label><textarea id="d_cause" rows="2"></textarea></div>
+      <div style="margin-top:8px"><label class="tag">Fix (and PR link)</label><textarea id="d_fix" rows="2"></textarea></div>
+      <div style="margin-top:8px"><label class="tag">Source URL (PR)</label><input id="d_url" style="width:100%" placeholder="https://github.com/..." /></div>
+      <div class="row" style="margin-top:12px"><button class="primary" id="createDraft">Create draft</button></div>
+    </div>
+    <div id="drafts"></div>
+  </section>
+
+  <!-- TEAMS / MARKETPLACE (Story 37) -->
+  <section id="tab-teams" class="hidden">
+    <div class="card">
+      <h2>Connected teams &amp; tools</h2>
+      <div class="sub">Each team plugs in its monitoring tool through the shared connector contract.</div>
+      <div id="teamsList"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+// Landing page: dismiss into the dashboard (Enter also works).
+$("enterDashboard").onclick = () => { $("landing").classList.add("hidden"); };
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !$("landing").classList.contains("hidden")) $("enterDashboard").click();
+});
+const api = async (method, path, body) => {
+  const res = await fetch(path, {
+    method,
+    headers: body ? { "Content-Type": "application/json" } : {},
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : {};
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+};
+const esc = (s) => (s || "").replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+const team = () => $("team").value;
+
+// --- tabs ---
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("nav button").forEach(x => x.classList.remove("active"));
+  b.classList.add("active");
+  ["recall", "review", "teams"].forEach(t =>
+    $("tab-" + t).classList.toggle("hidden", t !== b.dataset.tab));
+  if (b.dataset.tab === "review") loadDrafts();
+  if (b.dataset.tab === "teams") loadTeams();
+});
+
+// --- scenarios ---
+const scenarios = {
+  payments: { source: "new_relic", service: "payment-service", errorCode: "ERR_PAYMENT_409" },
+  checkout: { source: "prometheus", service: "checkout-web", errorCode: "ERR_CHECKOUT_503" },
+  unknown: { source: "new_relic", service: "payment-service", errorCode: "ERR_NEVER_SEEN_777" },
+};
+document.querySelectorAll("[data-scn]").forEach(b => b.onclick = () => {
+  const s = scenarios[b.dataset.scn];
+  $("source").value = s.source; $("service").value = s.service; $("errorCode").value = s.errorCode;
+});
+
+// --- recall ---
+function alertPayload(source, service, code) {
+  if (source === "prometheus") {
+    return { status: "firing", alerts: [{ status: "firing",
+      labels: { service, error_code: code }, startsAt: new Date().toISOString(),
+      generatorURL: "https://prometheus/graph" }] };
+  }
+  return { details: { error_code: code },
+    targets: [{ labels: { service } }], current_state: "open",
+    incident_url: "https://one.newrelic.com/alerts/" + code };
+}
+
+$("fire").onclick = async () => {
+  const source = $("source").value, service = $("service").value.trim(), code = $("errorCode").value.trim();
+  if (!service || !code) { alert("Enter a service and error code"); return; }
+  $("recallResult").innerHTML = `<div class="card muted">Recalling…</div>`;
+  try {
+    const r = await api("POST",
+      `/webhooks/alert?source=${encodeURIComponent(source)}&team=${encodeURIComponent(team())}`,
+      { payload: alertPayload(source, service, code) });
+    renderRecall(r);
+  } catch (e) {
+    $("recallResult").innerHTML = `<div class="card"><span class="nomatch">Error:</span> ${esc(e.message)}</div>`;
+  }
+};
+
+function renderRecall(r) {
+  const a = r.answer, matches = r.matches || [], live = r.live_status || {};
+  // FACTS FIRST (Story 38): matched incidents with honest scores (Story 39) + live status.
+  let facts = `<div class="card facts"><h2>Facts</h2>`;
+  facts += `<div class="sub">Alert: <b>${esc(r.alert.error_code)}</b> on ${esc(r.alert.service)}
+            via ${esc(r.alert.source_tool)}</div>`;
+  if (matches.length) {
+    facts += matches.map(m => {
+      const pct = Math.round(m.score * 100);
+      return `<div class="match"><div>${esc(m.title)}
+        <div class="tag"><a href="${esc(m.url)}" target="_blank">${esc(m.url)}</a></div></div>
+        <div style="text-align:right"><div class="score">${m.score.toFixed(2)}</div>
+        <div class="bar"><span style="width:${pct}%"></span></div></div></div>`;
+    }).join("");
+  } else {
+    facts += `<div class="muted">No incidents cleared the similarity threshold.</div>`;
+  }
+  facts += `<div class="tag" style="margin-top:8px">Live monitoring:
+            <b>${live.error_count ?? 0}</b> ${esc(live.error_code || "")} errors now
+            ${live.url ? `· <a href="${esc(live.url)}" target="_blank">view</a>` : ""}</div></div>`;
+
+  // AI SECOND (Story 38).
+  let ai = `<div class="card"><h2>AI answer <span class="tag">Muse Spark</span></h2>`;
+  if (a.no_match) {
+    ai += `<div class="answer"><span class="nomatch">${esc(a.text)}</span>
+           <div class="tag" style="margin-top:6px">No confident match — the system does not guess.</div></div>`;
+  } else {
+    ai += `<div class="answer">${esc(a.text)}</div>`;
+    ai += a.citations.map((c, i) =>
+      `<div class="cite">[${i + 1}] <span class="chip">${esc(c.kind)}</span>
+       <a href="${esc(c.url)}" target="_blank">${esc(c.label)}</a></div>`).join("");
+  }
+  ai += `</div>`;
+  $("recallResult").innerHTML = facts + ai;
+}
+
+// --- review / approve ---
+$("createDraft").onclick = async () => {
+  const body = {
+    team_id: team(), title: $("d_title").value.trim(),
+    error_codes: $("d_code").value.trim() ? [$("d_code").value.trim()] : [],
+    cause: $("d_cause").value.trim(), fix: $("d_fix").value.trim(), url: $("d_url").value.trim(),
+  };
+  if (!body.title) { alert("Give the draft a title"); return; }
+  try { await api("POST", "/incidents", body);
+    ["d_title","d_code","d_cause","d_fix","d_url"].forEach(id => $(id).value = "");
+    loadDrafts();
+  } catch (e) { alert(e.message); }
+};
+
+async function loadDrafts() {
+  const { incidents } = await api("GET", "/incidents?status=draft");
+  if (!incidents.length) { $("drafts").innerHTML = `<div class="card muted">No drafts waiting — create one above.</div>`; return; }
+  $("drafts").innerHTML = incidents.map(i => `
+    <div class="card">
+      <h2>${esc(i.title)} <span class="chip">${esc((i.error_codes||[]).join(", "))}</span></h2>
+      <div class="sub">team: ${esc(i.team_id)}</div>
+      <div><b>Cause.</b> ${esc(i.cause) || "<span class='muted'>—</span>"}</div>
+      <div style="margin-top:4px"><b>Fix.</b> ${esc(i.fix) || "<span class='muted'>—</span>"}</div>
+      <div class="row" style="margin-top:12px">
+        <button class="good" onclick="approve('${i.id}')">Approve</button>
+        <button class="bad" onclick="reject('${i.id}')">Reject</button>
+        <span class="tag">Only approved postmortems become searchable memory.</span>
+      </div>
+    </div>`).join("");
+}
+window.approve = async (id) => { await api("POST", `/postmortems/${id}/approve`); loadDrafts(); };
+window.reject = async (id) => { await api("POST", `/postmortems/${id}/reject`); loadDrafts(); };
+
+// --- teams ---
+async function loadTeams() {
+  const { teams } = await api("GET", "/teams");
+  $("teamsList").innerHTML = teams.length ? teams.map(t => `
+    <div class="match"><div>${esc(t.team_id)}
+      <div class="tag">can read: ${esc([t.team_id, ...(t.visible_teams||[])].join(", "))}</div></div>
+      <span class="chip">${esc(t.tool)}</span></div>`).join("")
+    : `<div class="muted">No teams registered (start the server with SEED_DEMO=1).</div>`;
+}
+
+// --- init ---
+(async () => {
+  try {
+    await api("GET", "/health");
+    $("health").textContent = "● online"; $("health").style.color = "var(--good)";
+  } catch { $("health").textContent = "● offline"; $("health").style.color = "var(--bad)"; }
+  try {
+    const { teams } = await api("GET", "/teams");
+    const ids = teams.length ? teams.map(t => t.team_id) : ["payments", "web", "platform"];
+    $("team").innerHTML = ids.map(id => `<option>${esc(id)}</option>`).join("");
+  } catch { $("team").innerHTML = `<option>payments</option>`; }
+})();
+</script>
+</body>
+</html>

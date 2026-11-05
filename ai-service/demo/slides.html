@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<!--
+  Incident Memory — pitch deck (Story 27 demo video).
+  Self-contained: no framework, no install. Open in any browser.
+  Navigate: → / Space = next, ← = back, F = fullscreen, P = print/PDF.
+  Export to PDF: press P (or Ctrl/Cmd+P) → "Save as PDF".
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Incident Memory — Pitch</title>
+<style>
+  :root{--bg:#0f1420;--panel:#171e2e;--panel2:#1e2740;--line:#2a3450;
+    --text:#e7ecf5;--muted:#93a0bd;--accent:#5b8cff;--good:#3ecf8e;--warn:#ffb020;--bad:#ff6b6b;}
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+    font:18px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;}
+  .deck{height:100vh;}
+  .slide{display:none;height:100vh;padding:7vh 9vw;flex-direction:column;justify-content:center;
+    background:radial-gradient(1200px 600px at 50% -10%,#1b2d4a,transparent),
+      linear-gradient(180deg,#121a2b 0%,var(--bg) 60%);}
+  .slide.active{display:flex;}
+  h1{font-size:52px;margin:0 0 10px;letter-spacing:.3px;}
+  h2{font-size:34px;margin:0 0 22px;}
+  .lede{font-size:22px;color:var(--muted);max-width:900px;}
+  ul{margin:14px 0 0;padding-left:0;list-style:none;max-width:980px;}
+  li{display:flex;gap:14px;align-items:flex-start;margin:12px 0;font-size:20px;}
+  li .b{flex:0 0 26px;height:26px;border-radius:50%;background:var(--panel2);color:var(--accent);
+    font-weight:700;display:grid;place-items:center;font-size:15px;}
+  .x li .b{color:var(--bad);}
+  .pill{display:inline-block;font-size:14px;color:var(--muted);border:1px solid var(--line);
+    border-radius:999px;padding:4px 12px;margin-bottom:18px;}
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:1000px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px;}
+  .card h3{margin:0 0 6px;font-size:19px;}
+  .card p{margin:0;color:var(--muted);font-size:16px;}
+  .flow{display:flex;gap:10px;flex-wrap:wrap;align-items:center;max-width:1050px;font-size:17px;}
+  .node{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 14px;}
+  .arrow{color:var(--accent);font-weight:700;}
+  .big{font-size:120px;font-weight:800;color:var(--accent);line-height:1;}
+  .demo{font-size:30px;color:var(--good);}
+  .stat{display:flex;gap:40px;flex-wrap:wrap;margin-top:10px;}
+  .stat div b{display:block;font-size:40px;color:var(--good);}
+  .stat div span{color:var(--muted);}
+  footer{position:fixed;bottom:18px;left:0;right:0;display:flex;justify-content:space-between;
+    padding:0 9vw;color:var(--muted);font-size:14px;}
+  .prog{position:fixed;top:0;left:0;height:3px;background:var(--accent);transition:width .2s;}
+  .muted{color:var(--muted);} .good{color:var(--good);} .warn{color:var(--warn);} .accent{color:var(--accent);}
+  @media print{.slide{display:flex;page-break-after:always;height:100vh;}footer,.prog{display:none;}}
+</style>
+</head>
+<body>
+<div class="prog" id="prog"></div>
+<div class="deck">
+
+  <!-- 1 TITLE -->
+  <section class="slide active">
+    <div class="pill">Meta Global AI Developer Hackathon · Build for Your World</div>
+    <h1>🧠 Incident Memory</h1>
+    <div class="lede">AI that remembers how your team fixed things — so the next person doesn't
+      spend an hour rediscovering yesterday's fix.</div>
+  </section>
+
+  <!-- 2 PROBLEM -->
+  <section class="slide">
+    <h2>The problem</h2>
+    <div class="lede">During an incident the real fix is worked out on a call. When the call ends,
+      that knowledge disappears — nobody has time to write it down.</div>
+    <ul class="x">
+      <li><span class="b">✕</span> "Chat with your docs" <b>misses exact error codes</b> like ERR_PAYMENT_409 — vectors match meaning, not strings.</li>
+      <li><span class="b">✕</span> It quotes <b>stale runbooks</b> for services that have changed.</li>
+      <li><span class="b">✕</span> It can leak answers across <b>teams that shouldn't see them</b>.</li>
+      <li><span class="b">✕</span> It <b>invents an answer</b> when nothing relevant exists.</li>
+    </ul>
+  </section>
+
+  <!-- 3 SOLUTION -->
+  <section class="slide">
+    <h2>The solution — two paths</h2>
+    <div class="cards">
+      <div class="card"><h3>① Capture</h3><p>An incident call is transcribed, Muse Spark drafts a
+        structured postmortem (cause, fix, owner, deploy), and an engineer <b>approves it with one click</b>.
+        Only approved postmortems become memory.</p></div>
+      <div class="card"><h3>② Recall</h3><p>When the same alert fires again, Incident Memory finds the past
+        incident, checks live errors and recent deploys, and answers in seconds with the fix
+        <b>and citations</b> — or says "No similar incident found".</p></div>
+    </div>
+    <div class="lede" style="margin-top:20px">A human approves every postmortem, so an AI mistake
+      never becomes team knowledge.</div>
+  </section>
+
+  <!-- 4 HOW RECALL WORKS -->
+  <section class="slide">
+    <h2>How recall works — 5 steps</h2>
+    <ul>
+      <li><span class="b">1</span><b>Alert arrives</b> — a New Relic or Prometheus webhook, normalized into one format.</li>
+      <li><span class="b">2</span><b>Permission filter</b> — restrict to the team's documents <i>before</i> retrieval.</li>
+      <li><span class="b">3</span><b>Hybrid search</b> — keyword (exact codes) + vector (meaning), merged with reciprocal rank fusion.</li>
+      <li><span class="b">4</span><b>Score check</b> — below threshold → "No similar incident found", no guessing.</li>
+      <li><span class="b">5</span><b>Cited answer</b> — Muse Spark writes the fix, every claim linked to a source.</li>
+    </ul>
+  </section>
+
+  <!-- 5 ARCHITECTURE -->
+  <section class="slide">
+    <h2>Architecture</h2>
+    <div class="flow">
+      <span class="node">Alert webhook</span><span class="arrow">→</span>
+      <span class="node">Permission filter</span><span class="arrow">→</span>
+      <span class="node">Hybrid search</span><span class="arrow">→</span>
+      <span class="node">Threshold</span><span class="arrow">→</span>
+      <span class="node">Cited answer</span>
+    </div>
+    <div class="flow" style="margin-top:22px">
+      <span class="node">Approve postmortem</span><span class="arrow">→</span>
+      <span class="node accent">Kafka: postmortem.approved</span><span class="arrow">→</span>
+      <span class="node">Indexer: chunk · embed · tag team</span><span class="arrow">→</span>
+      <span class="node">Postgres + pgvector</span>
+    </div>
+    <div class="lede" style="margin-top:22px">Every monitoring tool plugs in through <b>one connector
+      contract</b> — add a tool without touching recall or capture.</div>
+  </section>
+
+  <!-- 6 LIVE DEMO -->
+  <section class="slide">
+    <div class="pill">Switch to the app</div>
+    <h1>Live demo</h1>
+    <div class="demo">Recall a fix · switch teams (permissions) · approve a postmortem · honest no-match</div>
+  </section>
+
+  <!-- 7 WHAT MAKES IT HONEST -->
+  <section class="slide">
+    <h2>Built to be trustworthy</h2>
+    <div class="cards">
+      <div class="card"><h3>🔒 Team permissions</h3><p>Another team's postmortem is never returned — enforced before retrieval.</p></div>
+      <div class="card"><h3>🙅 Honest misses</h3><p>No confident match → it says so, instead of inventing a fix.</p></div>
+      <div class="card"><h3>📎 Every claim cited</h3><p>Answers link to the postmortem, the live error, and suspect commits.</p></div>
+      <div class="card"><h3>👀 Read-only</h3><p>It recalls fixes; it refuses to "revert the deploy" or change the system.</p></div>
+    </div>
+  </section>
+
+  <!-- 8 TECH + STATUS -->
+  <section class="slide">
+    <h2>Tech &amp; status</h2>
+    <div class="lede">Backend, data, and frontend are built and working — runs fully offline, no keys needed.</div>
+    <div class="stat">
+      <div><b>58</b><span>tests passing</span></div>
+      <div><b>90%</b><span>hit-rate @3 (synthetic eval)</span></div>
+      <div><b>~700ms</b><span>answer latency p50</span></div>
+      <div><b>0</b><span>setup / keys to run</span></div>
+    </div>
+    <ul style="margin-top:18px">
+      <li><span class="b">·</span>Hybrid search, permissions, event bus, indexer, connector contract, HTTP API, single-page UI.</li>
+      <li><span class="b">·</span>Pure standard library — in-memory stores stand in for Postgres/Kafka, swapped for production without a rewrite.</li>
+    </ul>
+  </section>
+
+  <!-- 9 CLOSING -->
+  <section class="slide">
+    <h1>🧠 Incident Memory</h1>
+    <div class="lede">The fix your team found last month, recalled in seconds — with citations,
+      permissions, and the honesty to say "I don't know".</div>
+    <div class="lede good" style="margin-top:18px">Thank you.</div>
+  </section>
+
+</div>
+<footer><span id="label">Incident Memory</span><span id="count"></span></footer>
+<script>
+  const slides=[...document.querySelectorAll('.slide')]; let i=0;
+  const show=(n)=>{i=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach((s,k)=>s.classList.toggle('active',k===i));
+    document.getElementById('prog').style.width=((i+1)/slides.length*100)+'%';
+    document.getElementById('count').textContent=(i+1)+' / '+slides.length;};
+  document.addEventListener('keydown',(e)=>{
+    if(e.key==='ArrowRight'||e.key===' ')show(i+1);
+    else if(e.key==='ArrowLeft')show(i-1);
+    else if(e.key.toLowerCase()==='f'){document.documentElement.requestFullscreen?.();}
+    else if(e.key.toLowerCase()==='p'){window.print();}});
+  document.addEventListener('click',(e)=>{ if(e.clientX < window.innerWidth*0.25) show(i-1); else show(i+1);});
+  show(0);
+</script>
+</body>
+</html>
